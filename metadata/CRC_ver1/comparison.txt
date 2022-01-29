@@ -1,0 +1,7 @@
+"Case"	"Control"	"Comparison"
+"144T_A_Orf1"	"144T_A_mIgG"	"144T_A.Orf1.vs.144T_A.IgG"
+"144T_B_Orf1"	"144T_B_mIgG"	"144T_B.Orf1.vs.144T_B.IgG"
+"159T_Orf1"	"159N_Orf1"	"159T.Orf1.vs.159N.Orf1"
+"159T_Orf1"	"159T_mIgG"	"159T.Orf1.vs.159T.IgG"
+"163T_Orf1"	"163N_Orf1"	"163T.Orf1.vs.163N.Orf1"
+"163T_Orf1"	"163T_mIgG"	"163T.Orf1.vs.163T.IgG"

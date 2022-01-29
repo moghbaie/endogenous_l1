@@ -1,0 +1,5 @@
+"Case"	"Control"	"Comparison"
+"N2102ep_Orf1_direct_extraction"	"N2102ep_IgG_direct_extraction"	"N2102ep.Orf1.vs.N2102ep.IgG"
+"N2102ep_Orf2_direct_extraction"	"N2102ep_mIgG_direct_extraction"	"N2102ep.Orf2.vs.N2102ep.mIgG"
+"PA1PC_Orf1_direct_extraction"	"PA1PC_IgG_direct_extraction"	"PA1PC.Orf1.vs.PA1PC.IgG"
+"NTERA2_Orf1_direct_extraction"	"NTERA2_IgG_direct_extraction"	"NTERA2_Orf1.vs.NTERA2.IgG"
