@@ -4,7 +4,7 @@
 # Perform ttest
 # Make the hit table
 
-LFQ_Template$set("public","fitLinearRegression", function(intensity ="iBAQ"){
+LFQ_Template$set("public","fitLinearRegression", function(intensity ="iBAQ", limma= TRUE){
   
   cat("Calculate log fold change.\n")
   metadata <- self$metadata
@@ -12,6 +12,7 @@ LFQ_Template$set("public","fitLinearRegression", function(intensity ="iBAQ"){
   
   for(comparison in names(self$experiments)){
     
+    print(comparison)
     modeldata <- rbind(
       self$metadata%>% 
         filter(Experiment_label %in%  self$comparison$Case[self$comparison$Comparison == comparison])%>%
@@ -21,28 +22,45 @@ LFQ_Template$set("public","fitLinearRegression", function(intensity ="iBAQ"){
         mutate(tag = -1))
     
     data <- self$experiments[[comparison]]%>%
-      select(contains(intensity))
+      dplyr::select(contains(intensity))
     rownames(data)<- self$experiments[[comparison]]$uniprotID
     
-    data1 <- data %>%pivot_longer(cols = everything())%>% filter(value!=0)
-    linear.mod <- lm(value~ as.factor(name)-1,data=data1)
-    sum <- summary(linear.mod)$coefficients[,"Estimate"]
-    names(sum) <- gsub("as.factor\\(name\\)","", names(sum))
     
-    cat("Normalizing each comparison.\n")
-    data.norm <- t(t(data)-sum)
+#    cat("Normalizing each comparison.\n")
+#    
+#    data.copy <- as.matrix(data)
+#    data.copy[data.copy==0] <- NA
+#    data.norm <- performGlobalRLRNormalization(data.copy, noLogTransform=TRUE)
     
-    mod <- model.matrix(~as.factor(modeldata$tag))
-    cols <- paste0("LFQ.intensity",".",modeldata$Experiment)
-    dy <- data.norm[,cols]
-    fit.limma <- limma::lmFit(dy, mod)
-    ebayes.limma <- eBayes(fit.limma)
-    
-    sig_tbl <- topTable(ebayes.limma,number = dim(dy)[1])%>%
-      as.data.frame%>%
-      select(logFC, adj.P.Val)%>%
-      mutate(Significant = ifelse(logFC>1&adj.P.Val<0.05,"Y","N"))%>%
-      mutate(uniprotID = rownames(.))
+    if(limma ){
+      
+      mod <- model.matrix(~as.factor(modeldata$tag))
+      cols <- paste0("LFQ.intensity",".",modeldata$Experiment)
+      dy <- data[,cols]
+      fit.limma <- limma::lmFit(dy, mod)
+      ebayes.limma <- eBayes(fit.limma)
+      
+      sig_tbl <- topTable(ebayes.limma,number = dim(dy)[1])%>%
+        as.data.frame%>%
+        select(logFC, adj.P.Val)%>%
+        mutate(Significant = ifelse(logFC>1&adj.P.Val<0.05,"Y","N"))%>%
+        mutate(uniprotID = rownames(.))
+      
+    }else{
+      
+      mod <- model.matrix(~as.factor(modeldata$tag))
+      cols <- paste0("LFQ.intensity",".",modeldata$Experiment)
+      dy <- data[,cols]
+      dy <- dy[apply(dy,1,function(x) sum(x, na.rm=T))>0,]
+      fit.lin <- lm.fit(mod,t(dy))
+      logFC <- as.data.frame(t(fit.lin$coefficients))[[2]]
+      P.Val <- genefilter::rowFtests(as.matrix(dy), as.factor(modeldata$tag))
+      P.Val[["adj.P.Val"]] <- p.adjust(P.Val$p.value,method = "BH")
+        
+      sig_tbl <- data.frame(logFC=logFC, adj.P.Val= P.Val$adj.P.Val, row.names = rownames(dy))%>%
+          mutate(Significant = ifelse(logFC>1&adj.P.Val<0.05,"Y","N"))%>%
+          mutate(uniprotID = rownames(.))
+    }
     
     self$significant_tbl[[comparison]] <- merge(self$significant_tbl[[comparison]],sig_tbl, by = "uniprotID")
   }
@@ -59,8 +77,8 @@ LFQ_Template$set("public","extractHits", function(){
   
   for(name in names(self$significant_tbl)){
     hits[[name]] <- self$significant_tbl[[name]]%>%
-      filter(Significant=="Y" &(Identification.by.MS.MS.case>0 |Identification.by.MS.MS.control>0))%>%
-      select(uniprotID, Gene.names)
+      filter(Significant=="Y" )%>%
+      dplyr::select(uniprotID, Gene.names)
   }
   
   

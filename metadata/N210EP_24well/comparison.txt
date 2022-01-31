@@ -1,0 +1,7 @@
+"Case" "Control" "Comparison"
+"N2102Ep_Orf1_Buffer1" "N2102Ep_mIgG_Buffer1" "N2102Ep_Orf1_Buffer1.vs.N2102Ep_mIgG_Buffer1"
+"N2102Ep_Orf1_Buffer10" "N2102Ep_mIgG_Buffer10" "N2102Ep_Orf1_Buffer10.vs.N2102Ep_mIgG_Buffer10"
+"N2102Ep_Orf1_Buffer11" "N2102Ep_mIgG_Buffer11" "N2102Ep_Orf1_Buffer11.vs.N2102Ep_mIgG_Buffer11"
+"N2102Ep_Orf1_Buffer13" "N2102Ep_mIgG_Buffer13" "N2102Ep_Orf1_Buffer13.vs.N2102Ep_mIgG_Buffer13"
+"N2102Ep_Orf1_Buffer17" "N2102Ep_mIgG_Buffer17" "N2102Ep_Orf1_Buffer17.vs.N2102Ep_mIgG_Buffer17"
+"N2102Ep_Orf1_Buffer9" "N2102Ep_mIgG_Buffer9" "N2102Ep_Orf1_Buffer9.vs.N2102Ep_mIgG_Buffer9"

@@ -3,8 +3,9 @@
 # Enrichment analysis with clusterprofiler
 
 LFQ_Template$set("public","enrichmentAnalysis", function(){
+  
   egos_tbl <- foreach(col = names(self$experiments),.combine= "rbind")%do%{
-    print(col)
+    
     uniprotIDs <- self$hits_tbl%>%filter_at(vars(col),~ (.x==1))%>%
       .$uniprotID
     
