@@ -1,0 +1,138 @@
+---
+title: "L1_loci_peptides"
+author: "Mehrnoosh"
+date: "3/30/2022"
+output: html_document
+
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+```
+
+
+
+```{r, include=FALSE}
+library(ggplot2)
+library(ggiraph)
+library(dplyr)
+library(magrittr)
+library(tidyverse)
+library(purrr)
+
+base::load("C:/endogenous_l1/output/backup/PEP_L1_loci.RData")
+
+
+```
+
+
+
+
+```{r, include=FALSE}
+
+
+di <- PEP_L1_loci$peptides%>% 
+  select(Sequence, Missed.cleavages,Mass, Proteins, Start.position, End.position, contains("LFQ.intensity"))%>%
+  pivot_longer(col = contains("LFQ.intensity"))%>%
+  filter(value>0)%>%
+  mutate(name = gsub("LFQ.intensity.","",name))%>%
+  filter(name %in% PEP_L1_loci$metadata$File_name)%>%
+  mutate(num.share = map_chr(Proteins, ~str_count(.x,";")+1))
+
+di[["Experiment_label"]] <- PEP_L1_loci$metadata$Experiment_label[match(di$name, PEP_L1_loci$metadata$File_name)]
+
+di.log2 <- di%>%
+  filter(!is.na(Experiment_label))%>%
+  mutate(num.share= as.integer(num.share))%>%
+  group_by(Sequence, Proteins, Experiment_label)%>%
+  summarize(avg.intensity = mean(log2(value+1),na.rm=T),
+            Mass = Mass[1],
+            Start.position=Start.position[1],
+            End.position=End.position[1])%>%
+  ungroup()%>%
+  mutate(type= map_chr(Proteins, ~ifelse(grepl("L1HS",strsplit(.x,";")[[1]][1]),"L1HS","L1PA")))
+
+
+
+p1 <- ggplot(di.log2, aes(fill=Proteins, y=avg.intensity, x=Experiment_label)) + 
+  geom_bar(position="stack", stat="identity")+
+  facet_grid(type~., scales="free", space="free", switch="y")+
+  theme_bw()+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1, size=8),
+        legend.position = "none",
+        axis.title.x = element_blank())
+```
+
+```{r, fig.width = 8, fig.height = 6, echo=FALSE}
+
+p1
+
+di.log2.proteins <- di.log2%>% 
+  group_by(Proteins, Experiment_label,type)%>%
+  summarize(count=n())%>%
+  ungroup()
+```
+
+```{r, fig.width = 8, fig.height = 4, echo=FALSE}
+p2 <- ggplot(di.log2.proteins, aes(fill=type, y=count, x=Experiment_label)) + 
+  geom_bar(position="stack", stat="identity")+
+  #facet_grid(type~., scales="free", space="free", switch="y")+
+  theme_bw()+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1, size=7),
+        legend.position = "bottom",
+        axis.title.x = element_blank())
+
+p2
+
+```
+
+```{r}
+
+dp <- PEP_L1_loci$peptides%>% 
+  select(Sequence, Missed.cleavages,Mass, Proteins, Start.position, End.position, contains("LFQ.intensity"))%>%
+  pivot_longer(col = contains("LFQ.intensity"))%>%
+  filter(value>0, Missed.cleavages==0)%>%
+  mutate(name = gsub("LFQ.intensity.","",name))%>%
+  filter(name %in% PEP_L1_loci$metadata$File_name)%>%
+  mutate(num.share = map_chr(Proteins, ~str_count(.x,";")+1))
+
+dp[["Experiment_label"]] <- PEP_L1_loci$metadata$Experiment_label[match(dp$name, PEP_L1_loci$metadata$File_name)]
+
+dp.log2 <- dp%>%
+  mutate(num.share= as.integer(num.share))%>%
+  filter(num.share==1)%>%
+  group_by(Sequence, Proteins, Experiment_label)%>%
+  summarize(avg.intensity = mean(log2(value+1),na.rm=T),
+            Mass = Mass[1],
+            Start.position=Start.position[1],
+            End.position=End.position[1])%>%
+  ungroup()
+
+
+dp.log2.avg <- dp.log2%>%
+  group_by(Proteins, Experiment_label)%>%
+  summarize(avg.log2.intensity = mean(avg.intensity), count=n())%>%
+  ungroup()%>%
+  mutate(type= map_chr(Proteins, ~ifelse(grepl("L1HS",strsplit(.x,";")[[1]][1]),"L1HS","L1PA")))
+
+g <- ggplot(data = dp.log2.avg, aes(x= Experiment_label, y = Proteins, fill= avg.log2.intensity))+
+  geom_tile_interactive(aes(tooltip= paste(Proteins,"\n detected in",Experiment_label,"\n number of unique detected peptides:",count,"\n","Log2 intensity:", avg.log2.intensity)))+
+  scale_fill_gradient(low="green",high="red2")+
+  facet_grid(type~., scales="free", space="free", switch="y")+
+  theme_bw()+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1, size=7),
+        axis.text.y = element_text(size=7))
+```
+
+
+```{r,  echo=FALSE}
+girafe(code = print(g),
+       width_svg = 10,
+      height_svg = 12)
+
+
+unique_prot <-  dp.log2.avg%>%
+  filter(type=="L1HS")%>%
+  .$Proteins
+```

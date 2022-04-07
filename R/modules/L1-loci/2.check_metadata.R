@@ -1,9 +1,9 @@
 # 01/09/2021
 # Mehrnoosh Oghbaie
 # Create metadata folder
-# download metadata.txt  from dropbox
+# download metadata.txt and comparison.txt from dropbox
 
-IDIRT_Template$set("public","importMetadata", function(txt_folder, token){
+PEP_Template$set("public","importMetadata", function(txt_folder, token){
   
   txt_folder <- self$txt.dir
   
@@ -34,10 +34,12 @@ IDIRT_Template$set("public","importMetadata", function(txt_folder, token){
   
   metadata_files <- mq_files$path_display[grepl("metadata.txt|comparison.txt",mq_files$name)]
   
-  print("Downloading metadata.txt ")
+  print("Downloading metadata.txt and comparison.txt.")
   lapply(metadata_files, function(x) drop_download(x, local_path = file.path("metadata",metadata_folder), overwrite = TRUE))
   
   self$metadata <- read.delim(file.path("metadata",metadata_folder, "metadata.txt"),sep="")
+  
+  self$comparison <- read.delim(file.path("metadata",metadata_folder, "comparison.txt"),sep="")
   
   invisible(self)
   

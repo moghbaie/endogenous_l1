@@ -22,7 +22,7 @@ LFQ_Template$set("public","imputeMissingValues", function(intensity = "iBAQ"){
     exp.copy <- as.matrix(exp%>% dplyr::select(contains(intensity)))
     exp.copy[exp.copy==0] <- NA
     
-    exp.norm <- performGlobalRLRNormalization(exp.copy, noLogTransform=TRUE)
+    exp.norm <- NormalyzerDE::performGlobalRLRNormalization(exp.copy, noLogTransform=TRUE)
     exp.norm <- as.data.frame(exp.norm)
 
   self$experiments[[name]][,case] <- impute(exp.norm[,case], amm = "2", pmm = "6")

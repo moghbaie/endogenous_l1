@@ -34,7 +34,7 @@ LFQ_Template$set("public","fitLinearRegression", function(intensity ="iBAQ", lim
     
     if(limma ){
       
-      mod <- model.matrix(~as.factor(modeldata$tag))
+      mod <- model.matrix(~factor(modeldata$tag, levels=c(-1,1)))
       cols <- paste0("LFQ.intensity",".",modeldata$Experiment)
       dy <- data[,cols]
       fit.limma <- limma::lmFit(dy, mod)
@@ -48,16 +48,20 @@ LFQ_Template$set("public","fitLinearRegression", function(intensity ="iBAQ", lim
       
     }else{
       
-      mod <- model.matrix(~as.factor(modeldata$tag))
+      mod <- model.matrix(~factor(modeldata$tag, levels=c(-1,1)))
       cols <- paste0("LFQ.intensity",".",modeldata$Experiment)
       dy <- data[,cols]
       dy <- dy[apply(dy,1,function(x) sum(x, na.rm=T))>0,]
+      
+      case.avg <- apply(dy[,paste0(paste0(intensity,"."),modeldata$Experiment[modeldata$tag==1])],1, function(x) mean(x, na.rm=T))
+      control.avg <- apply(dy[, paste0(paste0(intensity,"."),modeldata$Experiment[modeldata$tag==-1])],1, function(x) mean(x, na.rm=T))
+      
       fit.lin <- lm.fit(mod,t(dy))
       logFC <- as.data.frame(t(fit.lin$coefficients))[[2]]
-      P.Val <- genefilter::rowFtests(as.matrix(dy), as.factor(modeldata$tag))
+      P.Val <- genefilter::rowFtests(as.matrix(dy), factor(modeldata$tag,levels=c(-1,1)))
       P.Val[["adj.P.Val"]] <- p.adjust(P.Val$p.value,method = "BH")
         
-      sig_tbl <- data.frame(logFC=logFC, adj.P.Val= P.Val$adj.P.Val, row.names = rownames(dy))%>%
+      sig_tbl <- data.frame(case.avg=case.avg,control.avg=control.avg, logFC=logFC, adj.P.Val= P.Val$adj.P.Val, row.names = rownames(dy))%>%
           mutate(Significant = ifelse(logFC>1&adj.P.Val<0.05,"Y","N"))%>%
           mutate(uniprotID = rownames(.))
     }

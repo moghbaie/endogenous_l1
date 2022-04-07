@@ -1,10 +1,11 @@
-# 01/09/2021
+# 03/29/2021
 # Mehrnoosh Oghbaie
-# Import proteinGroups.txt and summary.txt from dropbox folder
+# Import proteinGroups.txt and peptides.txt from dropbox folder
 
-IDIRT_Template$set("public","importMQOutput", function(txt_folder, token, temp_folder){
+PEP_Template$set("public","importMQOutput", function(txt_folder, token, temp_folder){
   
   cat("Importing proteinGroups.txt.\n")
+  cat("Importing peptides.txt.\n")
   cat("Removing the contaminants and reverse sequences.\n")
   cat("Importing summary.txt .\n")
   cat("Importing parameters.txt .\n")
@@ -43,6 +44,21 @@ IDIRT_Template$set("public","importMQOutput", function(txt_folder, token, temp_f
   
   proteinGroups[["uniprotID"]] <- apply(proteinGroups,1, function(x) strsplit(x[["Protein.IDs"]],";")[[1]][1])
   self$proteinGroups <- proteinGroups
+  
+  
+  # Attach peptides.txt file to self
+  peptides_file <- txt_files[grepl("peptides",txt_files)]
+  if(!file.exists(file.path(temp_folder,"peptides.txt"))){
+    drop_download(peptides_file, local_path = temp_folder)
+  }
+  
+  peptides <- read.delim(file.path(temp_folder,"peptides.txt"))
+  peptides <- peptides%>%
+    filter(Potential.contaminant != "+"& Reverse != "+")
+  
+  
+  self$peptides <-  peptides
+  
   
   # Attach summary.txt file to self
   summary_file <- txt_files[grepl("summary",txt_files)]

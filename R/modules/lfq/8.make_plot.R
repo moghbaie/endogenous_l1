@@ -55,7 +55,8 @@ LFQ_Template$set("public","pcaplot", function(intensity = "iBAQ", colour = "Tiss
       dplyr::select(PC1,PC2)
    dx[["label"]] <- gsub(paste0(intensity,"."),"",rownames(df))
    dx <- dx%>%
-      merge(metadata, by.x ="label",by.y= "Experiment")
+      merge(metadata, by.x ="label",by.y= "Experiment")%>%
+      mutate_at(c(shape, colour), as.factor)
    
    g2 <- ggplot(data = dx)+
       geom_point(aes_string(x= "PC1", y= "PC2", colour= colour, shape = shape), stat="identity")+
@@ -119,13 +120,12 @@ LFQ_Template$set("public","boxplot", function(intensity = "iBAQ" ,facet.vars= c(
    
    
    if(!dir.exists(file.path(paste0("output/plot/", basename(self$txt.dir)),"boxplot"))){dir.create(file.path(paste0("output/plot/", basename(self$txt.dir)),"boxplot"))}
-   ggsave(file = file.path(paste0("output/plot/", basename(self$txt.dir)),"boxplot", "boxplot.png"),g2, height=8, width=(2+dim(dx)[1]/2000), dpi=200, limitsize=F)
+   ggsave(file = file.path(paste0("output/plot/", basename(self$txt.dir)),"boxplot", "boxplot.png"),g2, height=8, width=(2+dim(dx)[1]/3000), dpi=200, limitsize=F)
    
    invisible(self)
 })
 
 #4. Plot before and after imputation
-
 LFQ_Template$set("public","imputationplot", function(intensity = "iBAQ" , facet.vars= c("Tissue","Antibody")){
    
    dx <- self$significant_tbl
@@ -250,7 +250,49 @@ LFQ_Template$set("public","volcanoplot", function( genes.interest=c(), interacto
    invisible(self)
 })
 
-#6. Draw heatmap across all buffers in a condition
+#6. Scatterplot
+LFQ_Template$set("public","scatterplot", function(){
+   
+   for(name in names(self$significant_tbl)){
+      
+      dx <- self$significant_tbl[[name]]
+      
+      p1 <- ggplot(dx,aes(x= control.avg, y = case.avg, colour= Significant, label = Gene.names))+
+         geom_point(alpha=0.6)+
+         geom_text_repel()+
+         scale_colour_manual(values=c("Y"="red","N"="black"))+
+         theme_bw()+
+         ggtitle( name)
+      
+      if(!dir.exists(file.path(paste0("output/plot/", basename(self$txt.dir)),"scatterplot"))){dir.create(file.path(paste0("output/plot/", basename(self$txt.dir)),"scatterplot"))}
+      ggsave(file.path(paste0("output/plot/", basename(self$txt.dir)),"scatterplot", paste0(name,".scatterplot.png")),plot=p1,  width=8, height=8, limitsize = F)
+      
+   }
+   
+   invisible(self)
+})
+
+LFQ_Template$set("public","scatterplotGroup", function(){
+   for(name in names(self$significantGroup_tbl)){
+      
+      dy <- self$significantGroup_tbl[[name]]
+      p2 <- ggplot(dy,aes(x= control.avg, y = case.avg, colour= Significant, label = Gene.names))+
+         geom_point(alpha=0.6)+
+         geom_text_repel()+
+         scale_colour_manual(values=c("Y"="red","N"="black"))+
+         theme_bw()+
+         ggtitle( name)+
+         facet_wrap(Buffer~.)
+      
+      if(!dir.exists(file.path(paste0("output/plot/", basename(self$txt.dir)),"scatterplot"))){dir.create(file.path(paste0("output/plot/", basename(self$txt.dir)),"scatterplot"))}
+      ggsave(file.path(paste0("output/plot/", basename(self$txt.dir)),"scatterplot", paste0(name,".scatterplot.png")),plot=p2,  width=14, height=14, limitsize = F)
+      
+   }
+   invisible(self)
+   
+})
+
+#7. Draw heatmap across all buffers in a condition
 LFQ_Template$set("public","plotHeatmap", function(intensity = "iBAQ",genes.interest=c(), n= 50, multiwell = FALSE){
    
    if(multiwell){
@@ -347,4 +389,176 @@ LFQ_Template$set("public","plotHeatmap", function(intensity = "iBAQ",genes.inter
    invisible(self)
 }) 
 
-#7. Draw protein enrichment plot 
+#8 . multiwell mds plot
+LFQ_Template$set("public","plotMdsMultiwell", function(intensity = "iBAQ"){
+   metadata <- self$metadata
+   comparison <- self$comparison
+   
+   for(name in names(self$significantGroup_tbl)){
+      
+      case <- paste0(paste0(intensity,"."), metadata$Experiment[metadata$Experiment_label %in% comparison$Case[comparison$Multi.Comparison==name]])
+      
+      proteins_hits <- self$significantGroup_tbl[[name]]%>%
+         filter(Significant=="Y")%>%
+         .$uniprotID
+      
+      dx <- self$proteinGroups%>%
+         filter(uniprotID %in% proteins_hits)%>%
+         dplyr::select(Gene.names, uniprotID, case)
+      
+      dx <- dx[apply(dx %>% dplyr::select(case),1,sum)>0,]
+      
+      dx.backup <- as.matrix(dx%>% dplyr::select(case))
+      dx.backup[dx.backup==0] <- NA
+      rownames(dx.backup) <- dx$uniprotID
+      
+      dx.norm <- performGlobalRLRNormalization(dx.backup, noLogTransform=FALSE)
+      dx.norm <- as.data.frame(dx.norm)
+      dx.norm[is.na(dx.norm)] <- 0
+      dx.dist <- dist(dx.norm)
+      dx.mds <- cmdscale(dx.dist, k=3)%>%
+         as.data.frame%>%
+         rename(x = V1,
+                y = V2,
+                z = V3)
+      
+      dx.mds[["uniprotID"]] <- rownames(dx.mds)
+      dx.mds[["Gene.names"]] <- dx$Gene.names
+      dx.mds[["color"]] <- ifelse(grepl("L1RE1|ORF1",dx.mds$Gene.names),"red","gray")
+      
+      fig <- plot_ly(dx.mds, x = ~x, y = ~y, z = ~z,
+                     opacity=0.7,
+                     marker = list(color = ~color, showscale = TRUE),
+                     text = ~paste('uniprotID:', uniprotID, '<br>Gene.names:', Gene.names))%>% 
+         add_markers()
+     
+      
+      if(!dir.exists(file.path(paste0("output/plot/", basename(self$txt.dir)),"mds"))){dir.create(file.path(paste0("output/plot/", basename(self$txt.dir)),"mds"))}
+      htmlwidgets::saveWidget(as_widget(fig), file.path(paste0("output/plot/", basename(self$txt.dir)),"mds",paste0(name,"_mdsplot.html")))
+      
+   }
+   invisible(self)
+})
+
+#9. Draw Anova plot
+LFQ_Template$set("public","plotAnova", function(intensity = "iBAQ", impute.par = TRUE){
+   
+   result_dt <- c()
+   result_dp <- c()
+   anova_tbl <- self$anova_tbl
+   
+   for(buffer in unique(anova_tbl$Buffer)){
+      
+      dy <- self$significantGroup_tbl$drug473.vs.dmso%>%
+         filter(Buffer == buffer)
+      dx <- self$significantGroup_tbl$drug12.vs.dmso%>%
+         filter(Buffer == buffer)
+      exclusion <- self$significantGroup_tbl$dmso.vs.notreatment%>%
+         filter(Buffer == buffer, Significant== "Y")%>%
+         .$uniprotID
+      
+      df <- dx%>%
+         select(logFC,Significant,uniprotID, Gene.names)%>%
+         merge(dy%>%
+                  select(logFC,Significant,uniprotID, Gene.names),
+               by = c("Gene.names", "uniprotID"),
+               all = TRUE
+         )%>%
+         mutate(Significant.x = ifelse(is.na(Significant.x), "N", Significant.x),
+                Significant.y = ifelse(is.na(Significant.y), "N", Significant.y),
+                logFC.x = ifelse(is.na(logFC.x), 0, logFC.x),
+                logFC.y = ifelse(is.na(logFC.y), 0, logFC.y))%>%
+         filter((Significant.y=="Y"|Significant.x=="Y")& (!uniprotID %in% exclusion))%>%
+         mutate(color = ifelse(Significant.x=="Y"&Significant.y=="Y","drug12&drug473",
+                               ifelse(Significant.x=="Y"&(!Significant.y=="Y"),"drug12","drug473")))
+      
+      dt <- anova_tbl%>%filter(Buffer == buffer, !uniprotID %in% exclusion)%>%
+         merge(self$proteinGroups%>%
+                  select(uniprotID,Gene.names), by = "uniprotID", all.x = TRUE)%>%
+         merge(df%>%select(uniprotID,color), by = "uniprotID", all.x = TRUE)%>%
+         filter(!is.na(color))
+      
+      result_dt[[buffer]] <- dt
+      
+   }
+   
+   dt <- bind_rows(result_dt)%>%
+      filter(control.lfc>0| case.lfc>0)
+   
+   ds <- ggplot(dt, aes(x= control.lfc, y = case.lfc))+
+      geom_abline(intercept = 0, slope = 1) +
+      geom_point(stat = "identity", aes(colour = color))+
+      geom_text_repel(data = subset(dt,color !="drug12&drug473"),aes(x= control.lfc, y = case.lfc, label = Gene.names), size=2)+
+      theme_bw()+
+      facet_wrap(Buffer~.)
+   
+   
+   if(!dir.exists(file.path(paste0("output/plot/", basename(self$txt.dir)),"anova"))){
+      dir.create(file.path(paste0("output/plot/", basename(self$txt.dir)),"anova"))}
+   ggsave(file.path(paste0("output/plot/", basename(self$txt.dir)),"anova","scatterplot.png"),ds, height=12, width=12, dpi=200)
+   
+   
+   dp <- foreach(col=unique(dt$color), .combine=rbind)%do%{
+      uniprotID <- dt%>%filter(color== col)%>%
+         .$uniprotID
+      
+      proteins <- mapIds(org.Hs.eg.db, uniprotID, 'ENSEMBL', 'UNIPROT')
+      gene.df <- bitr(proteins , fromType = "ENSEMBL",
+                      toType = c("ENTREZID","ENSEMBL", "SYMBOL","UNIPROT"),
+                      OrgDb = org.Hs.eg.db)
+      
+      ego_bp <- performEnreachment(gene.df, cat='BP')
+      if(dim(ego_bp)[1]>0){
+         ego_bp[["category"]] <- "BP"
+      }
+      
+      ego_mf <- performEnreachment(gene.df, cat='MF')
+      if(dim(ego_mf)[1]>0){
+         ego_mf[["category"]] <- "MF"
+      }
+      
+      ego_cc <- performEnreachment(gene.df, cat='CC')
+      if(dim(ego_cc)[1]>0){
+         ego_cc[["category"]] <- "CC"    
+      }
+      
+      ego_tbl <- rbind(ego_bp, ego_mf , ego_cc)
+      if(dim(ego_tbl)[1]>0){
+         ego_tbl[["cluster"]] <- col
+      }
+      
+      return(ego_tbl)
+   }
+   
+   
+   for(cat in c("BP","CC","MF")){
+      des <-  dp%>%
+         filter(category==cat)%>%
+         select(category, Description, GeneRatio, cluster,  ID)%>%
+         mutate(GeneRatio = map_chr(GeneRatio,function(x) eval(parse(text=x))))%>%
+         pivot_wider(names_from = cluster , values_from = GeneRatio, values_fill = "0")%>%
+         mutate(delta = as.numeric(drug12) - as.numeric(drug473))%>%
+         arrange(delta)%>%
+         .$Description
+      
+      dpx <- dp %>%
+         filter(category==cat)%>%
+         mutate(GeneRatio = map_chr(GeneRatio,function(x) eval(parse(text=x))))%>%
+         mutate(Description = factor(Description, levels = unique(des)))%>%
+         filter(cluster !="drug12&drug473")
+      
+      
+      de <- ggplot(dpx, aes(Description, -log2(p.adjust))) +
+         geom_line(aes(group = Description)) +
+         geom_point(aes(color = cluster, size = GeneRatio),alpha = 0.7)+
+         guides(size="none")+
+         theme_bw()+
+         theme(axis.text.x = element_text(angle=90,hjust = 1))+
+         coord_flip()
+      
+      ggsave(file.path(paste0("output/plot/", basename(self$txt.dir)),"anova",paste0(cat,"_enrichment.png")),de, height=12, width=12, dpi=200)
+   }
+   
+   invisible(self)
+})
+

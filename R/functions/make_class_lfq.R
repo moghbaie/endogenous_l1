@@ -21,6 +21,7 @@ LFQ_Template <- R6::R6Class("LFQ_Template",
                           significantGroup_tbl = list(), # List of significant group table (including all buffers)
                           hits_tbl = NA, # List of hits in each comparison
                           enrichment = NA, 
+                          anova_tbl = NA,
                           plot = list()
                         ))
 

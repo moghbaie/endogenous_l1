@@ -6,25 +6,20 @@
 ## Defining the class
 
 
-Template <- R6::R6Class("Template",
+IDIRT_Template <- R6::R6Class("IDIRT_Template",
                     list(
-                      input.dir = "input",
-                      proteinGroups = list(),
-                      mixdata = list(),
-                      summary = list(),
-                      metadata = list(),
-                      percentages = list(),
-                      mixpercentages = list(),
-                      avg_values = list(),
-                      normaltest = NA,
-                      outliers = list(),
-                      percentageSignificant = list(),
-                      robustness = list(),
-                      compare_intensity = list(),
-                      logfoldchange2Base = list(),
-                      hits = list(),
-                      t.test_result = list(),
-                      enrichment = list()
+                      txt.dir = NA, # MQ output txt folder location
+                      qa_report = NA, # QC report summart table
+                      parameters = NA, # MQ parameters
+                      proteinGroups = NA, # proteinGroups.txt
+                      summary = NA, # summary.txt
+                      metadata = NA, # metadata file
+                      percentages = NA,
+                      experiments = list(),
+                      avg_values = NA,
+                      hits = NA,
+                      t.test_result = NA,
+                      enrichment = NA
                       ))
 
 
@@ -43,10 +38,11 @@ source(file.path("R/modules/idirt/4.calculate_percentage.R"), local = TRUE)$valu
 ## Detect hits
 source(file.path("R/modules/idirt/5.detect_hits.R"), local = TRUE)$value
 
-## impute intensities
-source(file.path("R/modules/idirt/6.Impute_intensities.R"), local = TRUE)$value
+## Enrichment analysis
+source(file.path("R/modules/idirt/6.Enrichment_analysis.R"), local = TRUE)$value
 
-
+## Make plot
+source(file.path("R/modules/idirt/7.make_plot.R"), local = TRUE)$value
 
 
 

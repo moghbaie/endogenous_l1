@@ -1,12 +1,16 @@
-# Mehrnoosh Oghbaie
-# 01/26/2022
-# Enrichment analysis with clusterprofiler
+###############################################################################################################
+## Author: Mehrnoosh Oghbaie
+## 11/14/2021
+## Imputing intensities
+##############################################################################################################
 
-LFQ_Template$set("public","enrichmentAnalysis", function(){
+IDIRT_Template$set("public","enrichmentAnalysis", function(){
   
-  egos_tbl <- foreach(col = names(self$experiments),.combine= "rbind")%do%{
+  experiments <- self$experiments[!grepl("mix",self$experiments)]
+  
+  egos_tbl <- foreach(col = experiments,.combine= "rbind")%do%{
     
-    uniprotIDs <- self$hits_tbl%>%filter_at(vars(col),~ (.x==1))%>%
+    uniprotIDs <- self$hits%>%filter_at(vars(col),~ (.x==1))%>%
       .$uniprotID
     
     proteins <- mapIds(org.Hs.eg.db, uniprotIDs, 'ENSEMBL', 'UNIPROT')
@@ -37,5 +41,5 @@ LFQ_Template$set("public","enrichmentAnalysis", function(){
   
   self[["enrichment"]] <- egos_tbl
   
-invisible(self)
+  invisible(self)
 })
